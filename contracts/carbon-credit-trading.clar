@@ -146,3 +146,51 @@
   )
 )
 
+(define-public (list-credit-for-sale (credit-id uint) (amount uint) (price-per-credit uint))
+  (let
+    (
+      (seller tx-sender)
+      (listing-id (var-get next-listing-id))
+      (balance (get-balance seller credit-id))
+    )
+    (asserts! (> price-per-credit u0) (err err-invalid-price))
+    (asserts! (>= balance amount) (err err-insufficient-balance))
+    (map-set listings
+      { listing-id: listing-id }
+      {
+        seller: seller,
+        credit-id: credit-id,
+        amount: amount,
+        price-per-credit: price-per-credit
+      }
+    )
+    (var-set next-listing-id (+ listing-id u1))
+    (ok listing-id)
+  )
+)
+
+(define-public (cancel-listing (listing-id uint))
+  (let
+    (
+      (listing (unwrap! (get-listing listing-id) (err err-not-found)))
+    )
+    (asserts! (is-eq tx-sender (get seller listing)) (err err-unauthorized))
+    (map-delete listings { listing-id: listing-id })
+    (ok true)
+  )
+)
+
+;; Admin functions
+(define-public (update-verifier (credit-id uint) (new-verifier principal))
+  (let
+    (
+      (credit (unwrap! (get-credit credit-id) (err err-not-found)))
+    )
+    (asserts! (is-eq tx-sender contract-owner) (err err-owner-only))
+    (map-set carbon-credits
+      { credit-id: credit-id }
+      (merge credit { verifier: new-verifier })
+    )
+    (ok true)
+  )
+)
